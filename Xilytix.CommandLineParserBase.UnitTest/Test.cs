@@ -1,4 +1,8 @@
-﻿using System;
+﻿// Project: Xilytix.CommandLineParserBase
+// Licence: Public Domain
+// Web Home Page: https://bitbucket.org/xilytix/commandlineparserbase/overview
+// Initial Developer: Paul Klink (http://paul.klink.id.au)
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Xilytix.CommandLineParserBase.UnitTest

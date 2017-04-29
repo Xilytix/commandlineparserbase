@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Paul Klink</authors>
+    <owners>$author$</owners>
+    <licenseUrl>https://en.wikipedia.org/wiki/Public-domain_software</licenseUrl>
+    <projectUrl>https://bitbucket.org/xilytix/commandlineparserbase/overview</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Initial Release</releaseNotes>
+    <copyright>Public Domain</copyright>
+    <tags>Command Line Parser</tags>
+  </metadata>
+  <files>
+    <file src="readme.txt" target="" />
+  </files>
+</package>
