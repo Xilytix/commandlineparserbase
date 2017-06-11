@@ -12,12 +12,14 @@
     <Copyright>Public Domain</Copyright>
     <Description>Simple, light weight, base class for command line parser</Description>
     <Company>Xilytix</Company>
-    <PackageReleaseNotes>Conversion to .NET Standard
-(Use version 1.0.1 for .NET Framework release)</PackageReleaseNotes>
-    <Version>1.0.2</Version>
+    <PackageReleaseNotes>Option parameter name is no longer terminated by an announcer.  This allows you to use option parameters such --test</PackageReleaseNotes>
+    <Version>1.0.3</Version>
     <RepositoryUrl>https://bitbucket.org/xilytix/commandlineparserbase.git</RepositoryUrl>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>Xilytix.CommandLineParserBase.pfx</AssemblyOriginatorKeyFile>
+    <FileVersion>1.0.3.0</FileVersion>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <DelaySign>False</DelaySign>
   </PropertyGroup>
 
   <ItemGroup>

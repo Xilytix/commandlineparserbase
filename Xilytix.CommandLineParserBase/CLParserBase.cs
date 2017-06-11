@@ -392,11 +392,10 @@ namespace Xilytix.CommandLineParserBase
 
         private char[] CreateOptionTerminationCharArray()
         {
-            char[] result = new char[2 + optionParamAnnouncerChars.Length + parseTerminateChars.Length];
+            char[] result = new char[2 + parseTerminateChars.Length];
             result[0] = quoteChar;
             result[1] = optionParamValueAnnouncerChar;
-            optionParamAnnouncerChars.CopyTo(result, 2);
-            parseTerminateChars.CopyTo(result, 2 + optionParamAnnouncerChars.Length);
+            parseTerminateChars.CopyTo(result, 2);
 
             return result;
         }
