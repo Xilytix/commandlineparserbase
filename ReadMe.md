@@ -1,8 +1,8 @@
-# Xilytix.CommandLineParserBase
+﻿# Xilytix.CommandLineParserBase
 
 ## Overview
 
-Xilytix.CommandLineParserBase contains a base class, CLParserBase, from which a Console Application Command Line parser class can be derived.
+Xilytix.CommandLineParserBase contains a base class, CLParserBase, from which a Command Line parser class can be derived.
 
 CLParserBase does the parsing of the Command Line.  It will call one of the following 2 virtual methods whenever it has parsed a text parameter or an option in the command line.
 
@@ -56,7 +56,24 @@ The derived class simply needs to override one or both of these methods.  The ex
         }
     }
 
-This parser can then be simply used as shown below.
+    protected override bool CanOptionHaveValue(string name)
+    {
+        // only need to override CanOptionHaveValue() if OptionParamValueAnnouncerChar = ' '
+        // (or other white space character)
+        return name == "m";
+    }
+
+The third override, **CanOptionHaveValue(string name)**, is only required if the character separating an option name from its value is specified by a **' '** (space) or any other white space character. In this case, there is an ambiguity about whether the text after the option name is the option's value or a separate text parameter. For example, is **-m 20000** an option with the value 20000 or is **m** a flag set to true and **20000** a separate text parameter.
+
+Whenever such an ambiguity arises, CanOptionHaveValue() will be called to resolve the ambiguity.  If CanOptionHaveValue() returns true, then the text after the option name will be its value and ProcessOption() option will be called with the text as the value parameter. Otherwise the option is a flag and ProcessOption() will be called with the value parameter holding null (and subsequently, ProcessTextParam() will be called with the text as the value parameter).
+
+Note that if the text after the option name begins with one of the OptionParamAnnouncer characters (eg. **'-'**), then it is considered as a separate option. In this case there is no ambiguity and CanOptionHaveValue() will not be called.  For example, in **-o -m 20000** CanOptionHaveValue() will not be called for the **-o** option as the subsequent text **-m** is a separate option.
+
+If CanOptionHaveValue() is not overrided, then no options are assumed to have values. That is, they are all treated as flags. 
+
+## Using
+
+Once the derived parser is declared, it can then be CanOptionHaveValueused as shown below.
 
     FileCopierCommandLineParser parser = new FileCopierCommandLineParser();
     
@@ -74,7 +91,8 @@ The specifications and capabilities of CLParserBase are:
 * Text parameters and Option parameter values can include spaces if they are enclosed in the quote character ('"').  Note that an Option name cannot contain spaces.
 * A quoted text parameter or quoted option value can include Quote characters by doubling each included Quote character (ie 2 successive Quote characters are considered as one Quote character).
 * If any of the "Parse Terminate" characters {'<', '>', '|'} are encountered in the command line, then the rest of the command line is ignored.  These characters signify that the rest of the command line is NOT to be interpretted by the application.
-* Alternative "Option Parameter Announcer" characters, "Option Parameter Value Announcer" character, Quote character and "Parse Terminate" characters can be specified by CLParserBase properties.  
+* Alternative "Option Parameter Announcer" characters, "Option Parameter Value Announcer" character, Quote character and "Parse Terminate" characters can be specified by CLParserBase properties.
+* The "Option Parameter Value Announcer" character can be set to space (**' '**). In this case spaces are used to separate command line parameters and separate option values from their names. In this case CanOptionHaveValue() should also be overrided as described above.
 
 ## Advantage
 

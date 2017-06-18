@@ -19,12 +19,15 @@ namespace Xilytix.CommandLineParserBase.UnitTest
         public const string ValuedOptionName = "V";
         public const string ValuedOptionLongName = "ValuedOption";
 
+        public const string OptionalValuedOptionName = "O";
+
         public const string InvalidTextParamValue = "InvalidTextParamValue";
         public const string InvalidTextParamValueErrorText = "Invalid Text Parameter Value";
 
         public int ParseLineLength;
         public bool Flag;
         public string OptionValue;
+        public string OptionalOptionValue;
 
         public string[] TextParams;
 
@@ -95,11 +98,25 @@ namespace Xilytix.CommandLineParserBase.UnitTest
                     }
                     else
                     {
-                        errorText = "Unsupported Option";
-                        return false;
+                        if (name == OptionalValuedOptionName)
+                        {
+                            OptionalOptionValue = value;
+                            errorText = null;
+                            return true;
+                        }
+                        else
+                        {
+                            errorText = "Unsupported Option";
+                            return false;
+                        }
                     }
                 }
             }
+        }
+
+        protected override bool CanOptionHaveValue(string name)
+        {
+            return name == ValuedOptionName || name == ValuedOptionLongName || name == OptionalValuedOptionName;
         }
     }
 }

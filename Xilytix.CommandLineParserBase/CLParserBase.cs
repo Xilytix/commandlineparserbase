@@ -23,6 +23,7 @@ namespace Xilytix.CommandLineParserBase
         {
             Announced,
             Name,
+            ValuePossible,
             ValueAnnounced,
             Value,
             ValuePossibleEndQuote
@@ -37,6 +38,20 @@ namespace Xilytix.CommandLineParserBase
         private char[] optionParamAnnouncerChars = DefaultOptionParamAnnouncerChars;
         private char optionParamValueAnnouncerChar = DefaultOptionParamValueAnnouncerChar;
         private char[] parseTerminateChars = DefaultParseTerminateChars;
+
+        private bool optionParamValueAnnouncerIsWhiteSpace = false;
+
+        private string parseLine;
+        private int textParamIdx;
+        private ParseState parseState;
+        private ParseOptionState parseOptionState;
+        private int startIdx;
+        private string optionName;
+        private bool quoted;
+        private bool ignoreRestOfLine;
+        private bool result;
+        private StringBuilder textBldr;
+        private char[] optionTerminationChars;
 
         /// <summary>
         /// Specifies the character used to enclose all text in a parameter or a option parameter value.
@@ -79,7 +94,12 @@ namespace Xilytix.CommandLineParserBase
         /// </summary>
         public char OptionParamValueAnnouncerChar
         {
-            get { return optionParamValueAnnouncerChar; } set { optionParamValueAnnouncerChar = value; }
+            get { return optionParamValueAnnouncerChar; }
+            set
+            {
+                optionParamValueAnnouncerChar = value;
+                optionParamValueAnnouncerIsWhiteSpace = char.IsWhiteSpace(optionParamValueAnnouncerChar);
+            }
         }
 
         /// <summary>
@@ -135,6 +155,11 @@ namespace Xilytix.CommandLineParserBase
             return true;
         }
 
+        protected virtual bool CanOptionHaveValue(string name)
+        {
+            return false;
+        }
+
         protected internal virtual string MakeErrorText(CLParserError.Id errorId, string errorParam)
         {
             string Result = CLParserError.IdToDefaultText(errorId);
@@ -147,192 +172,21 @@ namespace Xilytix.CommandLineParserBase
 
         public virtual bool Parse(string line, out string errorText)
         {
-            int textParamIdx = -1;
-            ParseState parseState = ParseState.NotInParam;
-            ParseOptionState parseOptionState = ParseOptionState.Announced;
-            int startIdx = -1;
-            string optionName = null;
-            bool quoted = false;
+            parseLine = line;
+            textParamIdx = -1;
+            parseState = ParseState.NotInParam;
+            parseOptionState = ParseOptionState.Announced;
+            startIdx = -1;
+            optionName = null;
+            quoted = false;
+            ignoreRestOfLine = false;
+            textBldr = new StringBuilder(30);
+            optionTerminationChars = CreateOptionTerminationCharArray();
             errorText = null;
-            bool ignoreRestOfLine = false;
-            bool result = true;
-            StringBuilder textBldr = new StringBuilder(30);
-            char[] optionTerminationChars = CreateOptionTerminationCharArray();
 
             for (int i = 0; i < line.Length; i++)
             {
-                char lineChar = line[i];
-                switch (parseState)
-                {
-                    case ParseState.NotInParam:
-                        if (lineChar == quoteChar)
-                        {
-                            parseState = ParseState.TextParam;
-                            textParamIdx++;
-                            startIdx = i;
-                            textBldr.Clear();
-                            quoted = true;
-                        }
-                        else
-                        {
-                            if (Array.IndexOf<char>(optionParamAnnouncerChars, lineChar) >= 0)
-                            {
-                                parseState = ParseState.OptionParam;
-                                parseOptionState = ParseOptionState.Announced;
-                                startIdx = i + 1;
-                            }
-                            else
-                            {
-                                if (Array.IndexOf<char>(parseTerminateChars, lineChar) >= 0)
-                                    ignoreRestOfLine = true;
-                                else
-                                {
-                                    if (!char.IsWhiteSpace(lineChar))
-                                    {
-                                        parseState = ParseState.TextParam;
-                                        textParamIdx++;
-                                        startIdx = i;
-                                        textBldr.Clear();
-                                        textBldr.Append(lineChar);
-                                        quoted = false;
-                                    }
-                                }
-                            }
-                        }
-                        break;
-
-                    case ParseState.TextParam:
-                        if (!quoted)
-                        {
-                            if (!char.IsWhiteSpace(lineChar))
-                                textBldr.Append(lineChar);
-                            else
-                            {
-                                result = ProcessTextParam(textParamIdx, textBldr.ToString(), startIdx, out errorText);
-                                parseState = ParseState.NotInParam;
-                            }
-                        }
-                        else
-                        {
-                            if (lineChar != QuoteChar)
-                                textBldr.Append(lineChar);
-                            else
-                                parseState = ParseState.TextParamPossibleEndQuote;
-                        }
-                        break;
-
-                    case ParseState.TextParamPossibleEndQuote:
-                        if (lineChar == QuoteChar)
-                        {
-                            textBldr.Append(lineChar);
-                            parseState = ParseState.TextParam;
-                        }
-                        else
-                        {
-                            if (char.IsWhiteSpace(lineChar))
-                            {
-                                result = ProcessTextParam(textParamIdx, textBldr.ToString(), startIdx, out errorText);
-                                parseState = ParseState.NotInParam;
-                            }
-                            else
-                            {
-                                result = PrepareErrorText(CLParserError.Id.InvalidQuoteCharacterInTextParameter, textBldr.ToString(), out errorText);
-                            }
-                        }
-                        break;
-
-                    case ParseState.OptionParam:
-                        switch (parseOptionState)
-                        {
-                            case ParseOptionState.Announced:
-                                if (char.IsWhiteSpace(lineChar) || Array.IndexOf<char>(optionTerminationChars, lineChar) >= 0)
-                                    result = PrepareErrorText(CLParserError.Id.OptionNotSpecifiedAtLinePosition, i.ToString(), out errorText);
-                                else
-                                    parseOptionState = ParseOptionState.Name;
-                                break;
-                            case ParseOptionState.Name:
-                                bool optionValueAnnounced = lineChar == optionParamValueAnnouncerChar;
-                                if (optionValueAnnounced || char.IsWhiteSpace(lineChar) || Array.IndexOf<char>(optionTerminationChars, lineChar) >= 0)
-                                {
-                                    optionName = line.Substring(startIdx, i - startIdx);
-                                    if (optionName == "")
-                                        result = PrepareErrorText(CLParserError.Id.OptionNotSpecifiedAtLinePosition, i.ToString(), out errorText);
-                                    else
-                                    {
-                                        if (optionValueAnnounced)
-                                            parseOptionState = ParseOptionState.ValueAnnounced;
-                                        else
-                                        {
-                                            result = ProcessOption(optionName, null, out errorText);
-                                            if (result)
-                                            {
-                                                parseState = ParseState.NotInParam;
-                                            }
-                                        }
-                                    }
-                                }
-                                break;
-                            case ParseOptionState.ValueAnnounced:
-                                startIdx = i;
-                                textBldr.Clear();
-                                if (char.IsWhiteSpace(lineChar))
-                                {
-                                    result = ProcessOption(optionName, "", out errorText);
-                                    parseState = ParseState.NotInParam;
-                                }
-                                else
-                                {
-                                    if (lineChar == QuoteChar)
-                                        quoted = true;
-                                    else
-                                    {
-                                        quoted = false;
-                                        textBldr.Append(lineChar);
-                                    }
-                                    parseOptionState = ParseOptionState.Value;
-                                }
-                                break;
-                            case ParseOptionState.Value:
-                                if (!quoted)
-                                {
-                                    if (!char.IsWhiteSpace(lineChar))
-                                        textBldr.Append(lineChar);
-                                    else
-                                    {
-                                        result = ProcessOption(optionName, textBldr.ToString(), out errorText);
-                                        parseState = ParseState.NotInParam;
-                                    }
-                                }
-                                else
-                                {
-                                    if (lineChar != QuoteChar)
-                                        textBldr.Append(lineChar);
-                                    else
-                                        parseOptionState = ParseOptionState.ValuePossibleEndQuote;
-                                }
-                                break;
-                            case ParseOptionState.ValuePossibleEndQuote:
-                                if (lineChar == QuoteChar)
-                                {
-                                    textBldr.Append(lineChar);
-                                    parseOptionState = ParseOptionState.Value;
-                                }
-                                else
-                                {
-                                    if (char.IsWhiteSpace(lineChar))
-                                    {
-                                        result = ProcessOption(optionName, textBldr.ToString(), out errorText);
-                                        parseState = ParseState.NotInParam;
-                                    }
-                                    else
-                                    {
-                                        result = PrepareErrorText(CLParserError.Id.InvalidQuoteCharacterInOptionValue, optionName, out errorText);
-                                    }
-                                }
-                                break;
-                        }
-                        break;
-                }
+                result = ProcessChar(i, line[i], out errorText);
                 if (!result || ignoreRestOfLine)
                 {
                     break;
@@ -367,6 +221,9 @@ namespace Xilytix.CommandLineParserBase
                                 optionName = line.Substring(startIdx, line.Length - startIdx);
                                 result = ProcessOption(optionName, null, out errorText);
                                 break;
+                            case ParseOptionState.ValuePossible:
+                                result = ProcessOption(optionName, null, out errorText);
+                                break;
                             case ParseOptionState.ValueAnnounced:
                                 result = ProcessOption(optionName, "", out errorText);
                                 break;
@@ -387,6 +244,215 @@ namespace Xilytix.CommandLineParserBase
                         break;
                 }
             }
+
+            return result;
+        }
+
+        private bool ProcessChar(int i, char lineChar, out string errorText)
+        {
+            result = true;
+            errorText = null;
+
+            switch (parseState)
+            {
+                case ParseState.NotInParam:
+                    if (lineChar == quoteChar)
+                    {
+                        parseState = ParseState.TextParam;
+                        textParamIdx++;
+                        startIdx = i;
+                        textBldr.Clear();
+                        quoted = true;
+                    }
+                    else
+                    {
+                        if (Array.IndexOf<char>(optionParamAnnouncerChars, lineChar) >= 0)
+                        {
+                            parseState = ParseState.OptionParam;
+                            parseOptionState = ParseOptionState.Announced;
+                            startIdx = i + 1;
+                        }
+                        else
+                        {
+                            if (Array.IndexOf<char>(parseTerminateChars, lineChar) >= 0)
+                                ignoreRestOfLine = true;
+                            else
+                            {
+                                if (!char.IsWhiteSpace(lineChar))
+                                {
+                                    parseState = ParseState.TextParam;
+                                    textParamIdx++;
+                                    startIdx = i;
+                                    textBldr.Clear();
+                                    textBldr.Append(lineChar);
+                                    quoted = false;
+                                }
+                            }
+                        }
+                    }
+                    break;
+
+                case ParseState.TextParam:
+                    if (!quoted)
+                    {
+                        if (!char.IsWhiteSpace(lineChar))
+                            textBldr.Append(lineChar);
+                        else
+                        {
+                            result = ProcessTextParam(textParamIdx, textBldr.ToString(), startIdx, out errorText);
+                            parseState = ParseState.NotInParam;
+                        }
+                    }
+                    else
+                    {
+                        if (lineChar != QuoteChar)
+                            textBldr.Append(lineChar);
+                        else
+                            parseState = ParseState.TextParamPossibleEndQuote;
+                    }
+                    break;
+
+                case ParseState.TextParamPossibleEndQuote:
+                    if (lineChar == QuoteChar)
+                    {
+                        textBldr.Append(lineChar);
+                        parseState = ParseState.TextParam;
+                    }
+                    else
+                    {
+                        if (char.IsWhiteSpace(lineChar))
+                        {
+                            result = ProcessTextParam(textParamIdx, textBldr.ToString(), startIdx, out errorText);
+                            parseState = ParseState.NotInParam;
+                        }
+                        else
+                        {
+                            result = PrepareErrorText(CLParserError.Id.InvalidQuoteCharacterInTextParameter, textBldr.ToString(), out errorText);
+                        }
+                    }
+                    break;
+
+                case ParseState.OptionParam:
+                    switch (parseOptionState)
+                    {
+                        case ParseOptionState.Announced:
+                            if (char.IsWhiteSpace(lineChar) || Array.IndexOf<char>(optionTerminationChars, lineChar) >= 0)
+                                result = PrepareErrorText(CLParserError.Id.OptionNotSpecifiedAtLinePosition, i.ToString(), out errorText);
+                            else
+                                parseOptionState = ParseOptionState.Name;
+                            break;
+                        case ParseOptionState.Name:
+                            bool optionValueAnnounced = lineChar == optionParamValueAnnouncerChar;
+                            if (optionValueAnnounced || char.IsWhiteSpace(lineChar) || Array.IndexOf<char>(optionTerminationChars, lineChar) >= 0)
+                            {
+                                optionName = parseLine.Substring(startIdx, i - startIdx);
+                                if (optionName == "")
+                                    result = PrepareErrorText(CLParserError.Id.OptionNotSpecifiedAtLinePosition, i.ToString(), out errorText);
+                                else
+                                {
+                                    if (optionValueAnnounced)
+                                    {
+                                        if (optionParamValueAnnouncerIsWhiteSpace)
+                                            parseOptionState = ParseOptionState.ValuePossible;
+                                        else
+                                            parseOptionState = ParseOptionState.ValueAnnounced;
+                                    }
+                                    else
+                                    {
+                                        result = ProcessOption(optionName, null, out errorText);
+                                        if (result)
+                                        {
+                                            parseState = ParseState.NotInParam;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        case ParseOptionState.ValuePossible:
+                            if (!char.IsWhiteSpace(lineChar))
+                            {
+                                if (
+                                    Array.IndexOf<char>(optionParamAnnouncerChars, lineChar) < 0 // not a new option
+                                    &&
+                                    CanOptionHaveValue(optionName) // option can have values
+                                    )
+                                {
+                                    parseOptionState = ParseOptionState.ValueAnnounced;
+                                    result = ProcessChar(i, lineChar, out errorText); // process first char of value
+                                }
+                                else
+                                {
+                                    result = ProcessOption(optionName, null, out errorText); // process current option
+                                    if (result)
+                                    {
+                                        parseState = ParseState.NotInParam;
+                                        result = ProcessChar(i, lineChar, out errorText); // will handle new option/text param
+                                    }
+                                }
+                            }
+                            break;
+                        case ParseOptionState.ValueAnnounced:
+                            startIdx = i;
+                            textBldr.Clear();
+                            if (char.IsWhiteSpace(lineChar))
+                            {
+                                result = ProcessOption(optionName, "", out errorText);
+                                parseState = ParseState.NotInParam;
+                            }
+                            else
+                            {
+                                if (lineChar == QuoteChar)
+                                    quoted = true;
+                                else
+                                {
+                                    quoted = false;
+                                    textBldr.Append(lineChar);
+                                }
+                                parseOptionState = ParseOptionState.Value;
+                            }
+                            break;
+                        case ParseOptionState.Value:
+                            if (!quoted)
+                            {
+                                if (!char.IsWhiteSpace(lineChar))
+                                    textBldr.Append(lineChar);
+                                else
+                                {
+                                    result = ProcessOption(optionName, textBldr.ToString(), out errorText);
+                                    parseState = ParseState.NotInParam;
+                                }
+                            }
+                            else
+                            {
+                                if (lineChar != QuoteChar)
+                                    textBldr.Append(lineChar);
+                                else
+                                    parseOptionState = ParseOptionState.ValuePossibleEndQuote;
+                            }
+                            break;
+                        case ParseOptionState.ValuePossibleEndQuote:
+                            if (lineChar == QuoteChar)
+                            {
+                                textBldr.Append(lineChar);
+                                parseOptionState = ParseOptionState.Value;
+                            }
+                            else
+                            {
+                                if (char.IsWhiteSpace(lineChar))
+                                {
+                                    result = ProcessOption(optionName, textBldr.ToString(), out errorText);
+                                    parseState = ParseState.NotInParam;
+                                }
+                                else
+                                {
+                                    result = PrepareErrorText(CLParserError.Id.InvalidQuoteCharacterInOptionValue, optionName, out errorText);
+                                }
+                            }
+                            break;
+                    }
+                    break;
+            }
+
             return result;
         }
 
