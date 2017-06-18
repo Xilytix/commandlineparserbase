@@ -63,7 +63,7 @@ The derived class simply needs to override one or both of these methods.  The ex
         return name == "m";
     }
 
-The third override, **CanOptionHaveValue(string name)**, is only required if the character separating an option name from its value is specified by a **' '** (space) or any other white space character. In this case, there is an ambiguity about whether the text after the option name is the option's value or a separate text parameter. For example, is **-m 20000** an option with the value 20000 or is **m** a flag set to true and **20000** a separate text parameter.
+The third override, **CanOptionHaveValue(string name)**, is only required if the character separating an option name from its value is specified by a **' '** (space) or any other white space character. In this case, there is an ambiguity about whether the text after the option name is the option's value or a separate text parameter. For example, is **-m 20000** an option with the value 20000 or is **m** a flag set to true and **20000** a separate text parameter?
 
 Whenever such an ambiguity arises, CanOptionHaveValue() will be called to resolve the ambiguity.  If CanOptionHaveValue() returns true, then the text after the option name will be its value and ProcessOption() option will be called with the text as the value parameter. Otherwise the option is a flag and ProcessOption() will be called with the value parameter holding null (and subsequently, ProcessTextParam() will be called with the text as the value parameter).
 
@@ -73,7 +73,7 @@ If CanOptionHaveValue() is not overrided, then no options are assumed to have va
 
 ## Using
 
-Once the derived parser is declared, it can then be CanOptionHaveValueused as shown below.
+Once the derived parser is declared, it can then be used as shown below.
 
     FileCopierCommandLineParser parser = new FileCopierCommandLineParser();
     
@@ -96,6 +96,6 @@ The specifications and capabilities of CLParserBase are:
 
 ## Advantage
 
-There are a lot more capable Command Line Parsers available. They typically work with a registration syntax specifying how the command line should be interpretted. With CLParserBase there is no registration syntax to remember.  Just override ProcessTextParam() and/or ProcessOption().
+There are a lot more capable Command Line Parsers available. They typically work with a registration syntax specifying how the command line should be interpretted. With CLParserBase there is no registration syntax to remember.  Just override ProcessTextParam() and/or ProcessOption() (and maybe CanOptionHaveValue()).
 
 CLParserBase would be ideal for simple console applications and quick hacks.  Easy to remember and easy to read.  For anything more sophisticated, there are better alternatives available.
